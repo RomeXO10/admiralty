@@ -79,6 +79,12 @@ from rendering**.
 ## Cross-cutting principles
 - **Determinism first.** Sim reproducible from seed + order log; no three.js in
   `sim/`. Protect this from P0 — it pays off in P5/P6.
+- **Test what you build.** Every feature ships with tests. The deterministic
+  core (`core/`, `sim/`, and later `command/`, `perception/`, `ai/`) is pure and
+  must be covered by unit tests — determinism, boundaries, and edge cases — so a
+  regression in the sim is caught by a red test, not by watching the demo. A
+  phase isn't "done" until `npm test` and `npm run typecheck` are green. Render
+  (three.js/WebGL) is exempt from unit tests; verify it through the demo.
 - **Always runnable.** Every phase produces a demo; avoid long integration gaps.
 - **Start simple, deepen what earns it.** Parametric sailing/gunnery before full
   polar diagrams; add fidelity only where it adds fun.
