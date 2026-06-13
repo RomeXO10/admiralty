@@ -132,6 +132,12 @@ multiplayer; land masses & navigation hazards; historical scenario library.
   table-driven polars, leeway, steering, tacking/wearing, in-irons.
 - [`docs/command-system.md`](docs/command-system.md) — the six-stage order
   pipeline, signal latency, captain autonomy, fog-of-war coupling.
+- [`docs/gunnery-damage-model.md`](docs/gunnery-damage-model.md) — batteries &
+  arcs, roll-timed firing, statistical volleys, localized damage, raking,
+  strike/sink/capture outcomes.
+- [`docs/fog-of-war-model.md`](docs/fog-of-war-model.md) — contacts &
+  uncertainty, detection, the smoke/visibility field, identity guessing, the
+  after-action fog reveal.
 
 ## 8. Open questions (revisit as we build)
 
