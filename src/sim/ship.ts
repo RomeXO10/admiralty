@@ -17,6 +17,8 @@ import { waveHeight } from "./waves";
 import { signedWindAngle, windDriveFactor, type Wind } from "./wind";
 import { drivePolar } from "./polar";
 import { SAIL_TRIM, SailSet, FRIGATE_SQUARE, type ShipClass } from "./shipClass";
+import { DamageState } from "./damage";
+import { Battery } from "./battery";
 
 /** A ship's full spatial state: position + orientation (radians). */
 export interface Pose {
@@ -28,6 +30,16 @@ export interface Pose {
   roll: number; // port/starboard lean
 }
 
+/** Where a ship stands in the fight (P3). */
+export enum ShipStatus {
+  /** Still under command and able to fight. */
+  Fighting = "Fighting",
+  /** Struck her colors: surrendered, ceased fire, heaving to. */
+  Struck = "Struck",
+  /** Flooding has beaten her buoyancy; she is going down. */
+  Sunk = "Sunk",
+}
+
 /** Helm band (rad): heading error beyond this commands full rudder. */
 const STEER_BAND = 0.35;
 /** Heading error (rad) under which a forced tack/wear turn is "complete". */
@@ -36,6 +48,13 @@ const MANEUVER_DONE = 0.05;
 const MANEUVER_EASE = 1.0;
 /** Clear of the no-go by this margin (rad) before a stalled ship draws again. */
 const IRONS_RECOVER_MARGIN = 0.08;
+
+/** Seconds for a sinking hull to settle fully under, for the render layer. */
+const SINK_TIME = 12;
+/** How far (m) a fully sunk hull drops below the waterline. */
+const SINK_DEPTH = 7;
+/** Final list (rad) a sinking hull heels to as she goes. */
+const SINK_LIST = 0.6;
 
 export class Ship {
   /** Stable identity within a {@link World}, assigned by `World.addShip`. */
@@ -75,6 +94,16 @@ export class Ship {
   /** Last computed true-wind angle (rad), cached for the HUD. */
   twa = 0;
 
+  // --- Combat state (P3) ---
+  /** The guns she carries, built from her class (see `battery.ts`). */
+  readonly batteries: Battery[];
+  /** Her localized condition: hull, masts, rigging, rudder, crew, morale. */
+  readonly damage: DamageState;
+  /** Where she stands in the fight. */
+  status: ShipStatus = ShipStatus.Fighting;
+  /** Progress of a sinking hull settling under, 0..1 (render only). */
+  private sinkT = 0;
+
   pose: Pose;
 
   constructor(
@@ -91,6 +120,17 @@ export class Ship {
     // Start already carrying its ordered canvas so the demo sails from t=0.
     this.trim = SAIL_TRIM[sailSet];
     this.pose = { x, y: 0, z, yaw: heading, pitch: 0, roll: 0 };
+    this.batteries = shipClass.batteries.map((spec) => new Battery(spec));
+    this.damage = new DamageState(shipClass.damage);
+  }
+
+  /**
+   * Strike the colors: cease fire and heave to. The hull stays in the world (it
+   * can be taken as a prize); the gunnery layer sets {@link status} and calls this.
+   */
+  strike(): void {
+    this.setSail(SailSet.Furled);
+    this.setHelm(this.heading);
   }
 
   // --- Helm / order interface (a placeholder for P2's captain layer) ---
@@ -156,6 +196,9 @@ export class Ship {
   step(dt: number, time: number, wind: Wind): void {
     const c = this.shipClass;
 
+    // Flooding vs. pumps runs every tick, independent of how she's handled.
+    this.damage.step(dt);
+
     const sw = signedWindAngle(this.heading, wind);
     this.twa = Math.abs(sw);
 
@@ -178,10 +221,16 @@ export class Ship {
     this.trim += clamp(targetTrim - this.trim, -maxTrimStep, maxTrimStep);
 
     // --- Drive & surge (momentum via asymmetric relaxation) ---
+    // A dismasted or short-rigged hull makes less of her rated speed; a struck
+    // or sinking ship drives no more (her canvas is in any case coming down).
     let targetSurge = 0;
-    if (!this.inIrons && this.twa >= c.nogoAngle) {
+    if (this.status === ShipStatus.Fighting && !this.inIrons && this.twa >= c.nogoAngle) {
       targetSurge =
-        c.maxSpeed * drivePolar(this.twa, c.polar) * this.trim * windDriveFactor(wind.speed);
+        c.maxSpeed *
+        drivePolar(this.twa, c.polar) *
+        this.trim *
+        windDriveFactor(wind.speed) *
+        this.damage.speedFactor;
     }
     const tau = targetSurge > this.surge ? c.tauUp : c.tauDown;
     this.surge += (targetSurge - this.surge) * Math.min(dt / tau, 1);
@@ -207,17 +256,18 @@ export class Ship {
         const raw = dir > 0 ? this.targetHeading - this.heading : this.heading - this.targetHeading;
         const rem = ((raw % TAU) + TAU) % TAU; // [0, TAU): angle left to turn
         this.rudder = dir;
-        targetYaw = dir * c.maneuverYawRate * Math.min(1, rem / MANEUVER_EASE);
+        targetYaw = dir * c.maneuverYawRate * this.damage.turnFactor * Math.min(1, rem / MANEUVER_EASE);
         if (rem < MANEUVER_DONE || rem > TAU - MANEUVER_DONE) {
           this.forcedTurn = 0;
           this.maneuver = "none";
         }
       } else {
         // Normal helm: rudder proportional to heading error, gated by steerage.
+        // A shot-away rudder bleeds authority; damaged rig slows the swing.
         const err = wrapAngle(this.targetHeading - this.heading);
         this.rudder = clamp(err / STEER_BAND, -1, 1);
-        const rudderAuth = clamp(this.surge / c.steerageSpeed, 0, 1);
-        targetYaw = c.turnRate * rudderAuth * this.rudder;
+        const rudderAuth = clamp(this.surge / c.steerageSpeed, 0, 1) * this.damage.steerFactor;
+        targetYaw = c.turnRate * this.damage.turnFactor * rudderAuth * this.rudder;
       }
       this.yawRate += (targetYaw - this.yawRate) * Math.min(dt / c.tauYaw, 1);
       this.heading = wrapAngle(this.heading + this.yawRate * dt);
@@ -267,6 +317,13 @@ export class Ship {
     // --- Buoyancy: settle onto the wave field at the new position ---
     this.settle(time, fwdX, fwdZ, rightX, rightZ, heel);
     this.pose.yaw = this.heading;
+
+    // A sunk hull keeps drifting but settles under with a growing list.
+    if (this.status === ShipStatus.Sunk) {
+      this.sinkT = Math.min(1, this.sinkT + dt / SINK_TIME);
+      this.pose.y -= this.sinkT * SINK_DEPTH;
+      this.pose.roll += this.sinkT * SINK_LIST;
+    }
   }
 
   /**

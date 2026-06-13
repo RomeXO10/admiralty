@@ -6,6 +6,8 @@
  * numbers here, never by touching the tick math. All values are SI (m, s, rad).
  */
 import { SQUARE_POLAR, FORE_AFT_POLAR, type PolarPoint } from "./polar";
+import { BatterySide, type BatterySpec } from "./battery";
+import { DEFAULT_DAMAGE, type DamageConfig } from "./damage";
 
 export type Rig = "square" | "foreAft";
 
@@ -66,7 +68,23 @@ export interface ShipClass {
   /** Hull half-extents (m) for sampling waves and reading pose at a glance. */
   halfLength: number;
   halfBeam: number;
+
+  // --- Combat constants (P3) — the guns she carries and the hull's resilience. ---
+  /** The batteries this class is built with (see `battery.ts`). */
+  batteries: readonly BatterySpec[];
+  /** Damage-model dynamics (crew complement, buoyancy, pumps, morale). */
+  damage: DamageConfig;
+  /** Crew/gunnery training quality (0.7 raw .. ~1.2 crack). */
+  crewQuality: number;
 }
+
+/** A frigate's broadside: two beam batteries plus light bow and stern chasers. */
+const FRIGATE_BATTERIES: readonly BatterySpec[] = [
+  { side: BatterySide.Port, guns: 13, gunWeight: 18, baseReload: 22 },
+  { side: BatterySide.Starboard, guns: 13, gunWeight: 18, baseReload: 22 },
+  { side: BatterySide.BowChaser, guns: 1, gunWeight: 9, baseReload: 30 },
+  { side: BatterySide.SternChaser, guns: 1, gunWeight: 9, baseReload: 30 },
+];
 
 /** A square-rigged frigate — the default test/demo ship. */
 export const FRIGATE_SQUARE: ShipClass = {
@@ -93,6 +111,10 @@ export const FRIGATE_SQUARE: ShipClass = {
 
   halfLength: 4.5,
   halfBeam: 1.6,
+
+  batteries: FRIGATE_BATTERIES,
+  damage: { ...DEFAULT_DAMAGE, complement: 280 },
+  crewQuality: 1,
 };
 
 /** A fore-and-aft cutter — points higher, handier, for variety/tests. */
@@ -104,4 +126,35 @@ export const CUTTER_FORE_AFT: ShipClass = {
   maxSpeed: 5.0,
   turnRate: 0.14,
   nogoAngle: Math.PI / 4, // 45°
+
+  // A cutter is a light gun platform: a handful of small guns a side.
+  batteries: [
+    { side: BatterySide.Port, guns: 5, gunWeight: 6, baseReload: 18 },
+    { side: BatterySide.Starboard, guns: 5, gunWeight: 6, baseReload: 18 },
+  ],
+  damage: { ...DEFAULT_DAMAGE, complement: 70, reserveBuoyancy: 60, pumpRate: 2.5 },
+  crewQuality: 0.95,
+};
+
+/** A ship of the line — slow and unhandy, but a crushing weight of metal. */
+export const SHIP_OF_THE_LINE: ShipClass = {
+  ...FRIGATE_SQUARE,
+  name: "Third-rate ship of the line",
+  maxSpeed: 5.2,
+  turnRate: 0.07,
+  maneuverYawRate: 0.5,
+  steerageSpeed: 1.3,
+
+  halfLength: 7.5,
+  halfBeam: 2.4,
+
+  // Two full gun decks: 24s below, 18s above, modelled as one heavy battery a side.
+  batteries: [
+    { side: BatterySide.Port, guns: 37, gunWeight: 24, baseReload: 28 },
+    { side: BatterySide.Starboard, guns: 37, gunWeight: 24, baseReload: 28 },
+    { side: BatterySide.BowChaser, guns: 2, gunWeight: 12, baseReload: 34 },
+    { side: BatterySide.SternChaser, guns: 2, gunWeight: 12, baseReload: 34 },
+  ],
+  damage: { ...DEFAULT_DAMAGE, complement: 640, reserveBuoyancy: 200, pumpRate: 7 },
+  crewQuality: 1,
 };
