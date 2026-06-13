@@ -126,7 +126,14 @@ Out of scope for v1 (later): campaign/meta-progression; walkable deck; boarding
 mini-game depth; weather *systems* (just static-per-battle wind + visibility);
 multiplayer; land masses & navigation hazards; historical scenario library.
 
-## 7. Open questions (revisit as we build)
+## 7. Detailed mechanic specs
+
+- [`docs/sailing-model.md`](docs/sailing-model.md) — wind, points of sail,
+  table-driven polars, leeway, steering, tacking/wearing, in-irons.
+- [`docs/command-system.md`](docs/command-system.md) — the six-stage order
+  pipeline, signal latency, captain autonomy, fog-of-war coupling.
+
+## 8. Open questions (revisit as we build)
 
 - How much captain autonomy is fun vs. frustrating? (Tune disobedience carefully.)
 - Order UI on the 3D view, the plot, or both? Leaning: plot is primary.
