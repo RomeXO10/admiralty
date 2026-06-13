@@ -19,6 +19,8 @@ export class World {
   readonly ships: Ship[] = [];
   /** Parallel to `ships`: each entry is the pose at the *previous* tick. */
   private prevPoses: Pose[] = [];
+  /** Monotonic source of stable ship ids (see {@link addShip}). */
+  private nextShipId = 0;
 
   /** Authoritative simulated time (seconds), advanced only by `tick`. */
   time = 0;
@@ -34,6 +36,7 @@ export class World {
   }
 
   addShip(ship: Ship): Ship {
+    ship.id = this.nextShipId++;
     this.ships.push(ship);
     this.prevPoses.push(clonePose(ship.pose));
     return ship;

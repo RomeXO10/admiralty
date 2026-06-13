@@ -34,7 +34,8 @@ export class SceneView {
       0.1,
       5000,
     );
-    this.camera.position.set(18, 12, 22);
+    // Pulled back to frame the flagship and her consort together (P2).
+    this.camera.position.set(70, 55, 100);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -42,7 +43,7 @@ export class SceneView {
     this.controls.target.set(0, 1.5, 0);
     this.controls.maxPolarAngle = Math.PI * 0.495; // don't drop below the horizon
     this.controls.minDistance = 8;
-    this.controls.maxDistance = 200;
+    this.controls.maxDistance = 600;
 
     // Sky + sun.
     const sky = new Sky();

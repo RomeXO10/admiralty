@@ -7,6 +7,7 @@ export default defineConfig({
     alias: {
       "@core": fileURLToPath(new URL("./src/core", import.meta.url)),
       "@sim": fileURLToPath(new URL("./src/sim", import.meta.url)),
+      "@command": fileURLToPath(new URL("./src/command", import.meta.url)),
       "@render": fileURLToPath(new URL("./src/render", import.meta.url)),
     },
   },
@@ -18,7 +19,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/core/**/*.ts", "src/sim/**/*.ts"],
+      include: ["src/core/**/*.ts", "src/sim/**/*.ts", "src/command/**/*.ts"],
       exclude: ["**/*.test.ts"],
       reporter: ["text", "html"],
     },

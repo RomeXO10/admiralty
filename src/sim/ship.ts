@@ -38,6 +38,8 @@ const MANEUVER_EASE = 1.0;
 const IRONS_RECOVER_MARGIN = 0.08;
 
 export class Ship {
+  /** Stable identity within a {@link World}, assigned by `World.addShip`. */
+  id = 0;
   readonly shipClass: ShipClass;
 
   // --- Horizontal sailing state (the authoritative navigation state) ---
