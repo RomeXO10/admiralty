@@ -25,10 +25,23 @@ What's in place:
 
 ```bash
 npm install
-npm run dev        # dev server at http://localhost:5173
-npm run typecheck  # strict tsc, no emit
-npm run build      # typecheck + production bundle
+npm run dev            # dev server at http://localhost:5173
+npm run typecheck      # strict tsc, no emit
+npm test               # run the unit tests (Vitest)
+npm run test:watch     # tests in watch mode
+npm run test:coverage  # tests + coverage report (core/ and sim/)
+npm run build          # typecheck + production bundle
 ```
+
+## Testing
+
+Every feature ships with tests — see the **Test what you build** principle in
+[`ROADMAP.md`](ROADMAP.md). The deterministic core (`src/core/`, `src/sim/`) is
+pure and three.js-free, so it's covered by fast `node`-environment unit tests
+co-located as `*.test.ts`: the seeded RNG and its reproducibility, the math and
+angle-wrapping helpers, the fixed-timestep loop's accumulator, the wave field,
+and ship buoyancy/world interpolation. The render layer (three.js/WebGL) is
+verified through the demo rather than unit tests.
 
 ## Architecture rule
 
