@@ -2,18 +2,31 @@ import { describe, it, expect } from "vitest";
 import { Rng } from "@core/rng";
 import { World } from "./world";
 import { Ship } from "./ship";
+import { SailSet } from "./shipClass";
+import type { Wind } from "./wind";
+
+const WIND: Wind = { fromDir: 0, speed: 7 };
 
 function makeWorld(): World {
-  return new World(new Rng(1));
+  return new World(new Rng(1), WIND);
+}
+
+/** A ship that won't move horizontally (furled), so position-fixed checks hold. */
+function moored(x: number, z: number, heading = 0): Ship {
+  return new Ship(x, z, heading, undefined, SailSet.Furled);
 }
 
 describe("World", () => {
   it("registers ships and returns the added ship", () => {
     const world = makeWorld();
-    const ship = new Ship(0, 0, 0);
+    const ship = moored(0, 0);
     expect(world.addShip(ship)).toBe(ship);
     expect(world.ships).toHaveLength(1);
     expect(world.ships[0]).toBe(ship);
+  });
+
+  it("exposes the battle wind it was constructed with", () => {
+    expect(makeWorld().wind).toBe(WIND);
   });
 
   it("advances simulated time by exactly dt per tick", () => {
@@ -31,7 +44,7 @@ describe("World", () => {
 
   it("updates each ship's pose against the new sim time", () => {
     const world = makeWorld();
-    const ship = world.addShip(new Ship(2, 2, 0));
+    const ship = world.addShip(moored(2, 2));
     const before = ship.pose.y;
     world.tick(1.0);
     // Pose recomputed at time = 1.0; heave should reflect the wave field there.
@@ -43,7 +56,7 @@ describe("World", () => {
     const b = makeWorld();
     a.addShip(new Ship(3, -1, 0.4));
     b.addShip(new Ship(3, -1, 0.4));
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 200; i++) {
       a.tick(1 / 60);
       b.tick(1 / 60);
     }
@@ -54,7 +67,7 @@ describe("World", () => {
   describe("interpolatedPose", () => {
     it("returns the previous tick's pose at alpha = 0", () => {
       const world = makeWorld();
-      world.addShip(new Ship(1, 1, 0));
+      world.addShip(moored(1, 1));
       world.tick(0.5); // prev = initial pose (y 0), cur = pose at t=0.5
       const p = world.interpolatedPose(0, 0);
       expect(p.y).toBeCloseTo(0, 10); // initial heave
@@ -62,7 +75,7 @@ describe("World", () => {
 
     it("returns the current pose at alpha = 1", () => {
       const world = makeWorld();
-      const ship = world.addShip(new Ship(1, 1, 0));
+      const ship = world.addShip(moored(1, 1));
       world.tick(0.5);
       const p = world.interpolatedPose(0, 1);
       expect(p.y).toBeCloseTo(ship.pose.y, 10);
@@ -72,14 +85,24 @@ describe("World", () => {
 
     it("blends linearly between previous and current at alpha = 0.5", () => {
       const world = makeWorld();
-      const ship = world.addShip(new Ship(1, 1, 0));
+      const ship = world.addShip(moored(1, 1));
       world.tick(0.5);
       const p = world.interpolatedPose(0, 0.5);
-      // x/z are fixed in P0, so they pass straight through.
+      // A furled ship doesn't move, so x/z pass straight through.
       expect(p.x).toBe(1);
       expect(p.z).toBe(1);
       // Heave is the average of prev (0) and current.
       expect(p.y).toBeCloseTo(ship.pose.y * 0.5, 10);
+    });
+
+    it("interpolates a sailing ship's moving position", () => {
+      const world = makeWorld();
+      // Beam reach, full sail: the hull makes way, so x/z actually move.
+      const ship = world.addShip(new Ship(0, 0, Math.PI / 2, undefined, SailSet.Full));
+      for (let i = 0; i < 120; i++) world.tick(1 / 60);
+      const half = world.interpolatedPose(0, 0.5);
+      expect(half.z).toBeGreaterThan(0); // sailing toward +Z
+      expect(half.z).toBeLessThan(ship.pose.z);
     });
   });
 });

@@ -9,6 +9,7 @@
 import type { Rng } from "@core/rng";
 import { lerp, lerpAngle } from "@core/math";
 import { Ship, type Pose } from "./ship";
+import type { Wind } from "./wind";
 
 function clonePose(p: Pose): Pose {
   return { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, roll: p.roll };
@@ -22,7 +23,15 @@ export class World {
   /** Authoritative simulated time (seconds), advanced only by `tick`. */
   time = 0;
 
-  constructor(readonly rng: Rng) {}
+  /** The battle's true wind — one constant vector in v1 (see `sim/wind.ts`). */
+  readonly wind: Wind;
+
+  constructor(
+    readonly rng: Rng,
+    wind: Wind,
+  ) {
+    this.wind = wind;
+  }
 
   addShip(ship: Ship): Ship {
     this.ships.push(ship);
@@ -37,7 +46,7 @@ export class World {
       const ship = this.ships[i]!;
       // Stash the pose we're leaving so render can interpolate from it.
       this.prevPoses[i] = clonePose(ship.pose);
-      ship.update(this.time);
+      ship.step(dt, this.time, this.wind);
     }
   }
 
