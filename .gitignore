@@ -4,3 +4,9 @@ coverage/
 *.local
 .DS_Store
 .vite/
+
+# Playwright e2e artifacts (screenshots are produced in CI and uploaded as
+# build artifacts, not committed).
+e2e/screenshots/
+playwright-report/
+test-results/

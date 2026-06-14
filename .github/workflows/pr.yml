@@ -1,0 +1,74 @@
+name: PR
+
+# Pull-request checks. Runs the deterministic unit suite + typecheck, then an
+# end-to-end Playwright run whose real job is to capture screenshots of the live
+# three.js demo and publish them as a downloadable artifact so a reviewer can
+# eyeball the render without checking the branch out.
+on:
+  pull_request:
+    branches: [main]
+  # Allow manual runs from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Fast gate: the pure sim is fully unit-tested, so keep this honest and quick.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+  # End-to-end screenshot run. Deliberately light on assertions (just enough to
+  # prove the WebGL demo boots and draws); the deliverable is the screenshots.
+  e2e-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Pull Chromium + its system libs. SwiftShader (bundled) gives us WebGL on
+      # the GPU-less runner.
+      - run: npx playwright install --with-deps chromium
+
+      # The Playwright config builds the app and serves it via `vite preview`,
+      # then drives the deterministic duel and writes the screenshots.
+      - run: npm run e2e
+
+      # Publish the screenshots as a build artifact. Download them from the run's
+      # "Summary" page under "Artifacts" → "pr-screenshots".
+      - name: Upload screenshots
+        if: always() # capture whatever was produced, even on assertion failure
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-screenshots
+          path: e2e/screenshots/
+          if-no-files-found: error
+          retention-days: 14
+
+      # On failure, the HTML report + traces help diagnose what went wrong.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
