@@ -4,19 +4,22 @@ An Age of Sail fleet-command game in three.js. You are an admiral, not a
 helmsman — see [`DESIGN.md`](DESIGN.md) for the vision and
 [`ROADMAP.md`](ROADMAP.md) for the build order.
 
-## Status — P2: Command layer
+## Status — P3: Cannons & damage
 
-You are the admiral, not the helmsman. You signal a consort sailing in company
-and watch your order make its passage: a hoist goes up, is *seen* across the
-water, *comprehended* by her captain, and only then *carried out* — the helm
-holds its old course until the signal lands. Each order walks a six-stage
-pipeline (hoist → en route → comprehend → execute), reception is gated by signal
-range (the v1 stand-in for line of sight), the acknowledgement lags behind so
-for a moment you've ordered into a void, a fresh order supersedes the previous
-one in its domain, captains misread complex signals (telegraphed, never silent),
-and orders the ship can't obey come back as reports. On top of P1's honest
-sailing and P0's shader sea — still a deterministic fixed-timestep sim, split
-from rendering.
+Two ships fight. On top of P2's command layer, P1's honest sailing, and P0's
+shader sea, the guns now speak — and they're modelled the way an age-of-sail
+gun deck actually worked. Broadsides have **fixed traverse**: a battery only
+**bears** when the target lies abeam (±35°), so most of a length-wise approach
+has no guns bearing, which is what makes the **rake** — crossing her bow or
+stern to send shot down the whole ship while she can't reply — the prize
+maneuver. Damage resolves **statistically per volley** (never per ball) and
+lands on *places*: round shot holes the hull and floods her below the waterline,
+chain brings down masts and cuts her speed, grape sweeps the crew at close
+range. Reload paces the fire, the roll phase opens and closes the firing window,
+and a battered captain's **morale** decides whether she keeps fighting. It ends
+not at a health bar but with a ship **striking her colors** (taken as a prize)
+or **sinking** — and a dismasted or short-handed hull sails worse the rest of
+the fight. Still a deterministic fixed-timestep sim, split from rendering.
 
 What's in place:
 
@@ -40,19 +43,38 @@ What's in place:
   acknowledgement as the admiral's *belief* separate from the act, applies
   executed orders to the sailing model, and emits stage events + outcome
   reports. Follows [`docs/command-system.md`](docs/command-system.md).
+- **`src/sim/` gunnery & damage (P3)** — pure and three.js-free. A `battery`
+  model (guns, shot types — round/chain/grape, bearing arcs, roll-paced reload,
+  dismounting), a localized `damage` model (hull + flooding vs. pumps, per-mast
+  integrity, rigging, rudder, crew, and morale, plus the derived multipliers the
+  sailing model reads so a wounded ship sails slower), and the `GunnerySystem`
+  that resolves a volley statistically — range/accuracy falloff, the roll-timing
+  window, broadside aspect, the **rake** bonus across bow or stern — distributes
+  the hits by shot type, spawns the smoke, and settles strike/sink outcomes.
+  Follows [`docs/gunnery-damage-model.md`](docs/gunnery-damage-model.md).
 - **`src/render/`** — three.js scene: a shader ocean that reproduces the *same*
   wave field the sim uses (so the hull sits on the water), sky + sun + lighting,
-  a placeholder ship model, an orbit camera framed on the flagship and her
-  consort, and a wind indicator.
+  a placeholder ship model whose sails thin out and come down as she's hit, an
+  orbit camera framed on the two ships, drifting **cannon smoke** (spectacle
+  only — it doesn't feed the sim yet), and a wind indicator.
 
 ### Demo controls
 
-`npm run dev`, then signal the **consort** (your orders, not direct control):
-**A/D** steer ±15° · **W/S** make/reduce sail · **Q** tack · **E** wear ·
-**H** hold station · drag to orbit · scroll to zoom. The debug HUD reads out the
-wind and the consort's heading, point of sail, and speed, plus the live signals
-(with their pipeline stage and acknowledgement) and a log of order outcomes —
-watch each order lag before the consort obeys.
+`npm run dev` opens a **duel**: your frigate and an enemy run side by side and
+fight. You signal your ship (orders, not direct control) and lay her guns:
+
+- **A/D** steer ±15° · **W/S** make/reduce sail · **Q** tack · **E** wear ·
+  **H** hold station
+- **1/2/3** load round / chain / grape · **F** fire a broadside · **C**
+  cease/open fire
+- **Space** tactical pause · **R** a fresh duel (new seed) · drag to orbit ·
+  scroll to zoom
+
+The HUD reads out both ships' condition — hull, masts, rigging, rudder, crew,
+morale, flooding, and battery reload — the range, the live signals, and a combat
+log of volleys (with **RAKE!** when you cross her ends) and outcomes. Maneuver to
+bring your broadside to bear, or cross her stern to rake; the fight ends when one
+ship strikes or sinks.
 
 ## Develop
 
@@ -79,8 +101,14 @@ tacking/wearing, missing stays into irons — and the command layer: the latency
 model and misread corruption, and the full order pipeline integrated with the
 sim (signal delay before the helm moves, range-gated reception, the
 acknowledgement lagging the act, supersede rules, misread/unexecutable reports,
-captain quality, and end-to-end determinism). The render layer (three.js/WebGL)
-is verified through the demo rather than unit tests.
+captain quality, and end-to-end determinism) — and the gunnery and damage layer:
+the bearing arcs and reload cycle, the accuracy/range/roll-timing/aspect/rake
+resolution, the localized damage model (holing, flooding vs. pumps, dismasting,
+crew and morale), how that damage couples back to slow a wounded ship, and a
+full duel — both its *in-between* progression (damage mounting volley by volley,
+flooding rising before she founders, masts reported down mid-fight, the reload
+cadence) and its strike/sink endgame, all deterministic from the seed. The
+render layer (three.js/WebGL) is verified through the demo rather than unit tests.
 
 ## Architecture rule
 

@@ -6,10 +6,13 @@
  * needs to sit convincingly on the water and bob.
  */
 import * as THREE from "three";
-import type { Pose } from "@sim/ship";
+import { ShipStatus, type Pose } from "@sim/ship";
 
 export class ShipModel {
   readonly group: THREE.Group;
+  /** Sail meshes, so the rig can be shown ragged, furled, or struck. */
+  private readonly sails: THREE.Mesh[] = [];
+  private readonly sailMat: THREE.MeshStandardMaterial;
 
   constructor() {
     const group = new THREE.Group();
@@ -31,7 +34,9 @@ export class ShipModel {
       color: 0xe8e2d0,
       roughness: 0.95,
       side: THREE.DoubleSide,
+      transparent: true,
     });
+    this.sailMat = sailMat;
 
     // Hull: a tapered box. Length runs along +X (heading 0).
     const hull = new THREE.Mesh(new THREE.BoxGeometry(9, 2.2, 3), hullMat);
@@ -69,6 +74,7 @@ export class ShipModel {
       sail.position.set(mx, 1.6 + mh * 0.45, 0);
       sail.rotation.y = Math.PI / 2;
       group.add(sail);
+      this.sails.push(sail);
     }
 
     // Bowsprit.
@@ -100,5 +106,15 @@ export class ShipModel {
   applyPose(pose: Pose): void {
     this.group.position.set(pose.x, pose.y, pose.z);
     this.group.rotation.set(-pose.roll, -pose.yaw, pose.pitch, "YXZ");
+  }
+
+  /**
+   * Reflect a ship's combat condition in her rig: sails thin out as the rigging
+   * is shot away, and come down entirely once she strikes or sinks.
+   */
+  setCondition(sailEfficiency: number, status: ShipStatus): void {
+    const flying = status === ShipStatus.Fighting;
+    this.sailMat.opacity = flying ? 0.35 + 0.65 * sailEfficiency : 0.12;
+    for (const sail of this.sails) sail.visible = flying;
   }
 }
