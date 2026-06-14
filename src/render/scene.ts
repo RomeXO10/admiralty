@@ -15,6 +15,8 @@ export class SceneView {
   readonly ocean: Ocean;
 
   private readonly sunDir = new THREE.Vector3();
+  private readonly windArrow: THREE.ArrowHelper;
+  private readonly followTarget = new THREE.Vector3(0, 0, 0);
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -32,7 +34,8 @@ export class SceneView {
       0.1,
       5000,
     );
-    this.camera.position.set(18, 12, 22);
+    // Pulled back to frame the flagship and her consort together (P2).
+    this.camera.position.set(70, 55, 100);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -40,7 +43,7 @@ export class SceneView {
     this.controls.target.set(0, 1.5, 0);
     this.controls.maxPolarAngle = Math.PI * 0.495; // don't drop below the horizon
     this.controls.minDistance = 8;
-    this.controls.maxDistance = 200;
+    this.controls.maxDistance = 600;
 
     // Sky + sun.
     const sky = new Sky();
@@ -73,11 +76,48 @@ export class SceneView {
     this.ocean = new Ocean(skyColor, this.sunDir);
     this.scene.add(this.ocean.mesh);
 
+    // Wind indicator: an arrow pointing the way the wind blows (downwind),
+    // floating above the flagship so the player can read the breeze at a glance.
+    this.windArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(0, 12, 0),
+      9,
+      0xffd27f,
+      3,
+      2,
+    );
+    this.scene.add(this.windArrow);
+
     window.addEventListener("resize", this.onResize);
   }
 
   add(object: THREE.Object3D): void {
     this.scene.add(object);
+  }
+
+  /**
+   * Keep the camera framed on a moving target by translating both the camera
+   * and the orbit pivot by the target's displacement — so the ship stays
+   * centred while the user can still orbit and zoom freely.
+   */
+  follow(x: number, z: number): void {
+    const dx = x - this.followTarget.x;
+    const dz = z - this.followTarget.z;
+    this.camera.position.x += dx;
+    this.camera.position.z += dz;
+    this.controls.target.x += dx;
+    this.controls.target.z += dz;
+    this.followTarget.set(x, 0, z);
+    this.windArrow.position.set(x, 12, z);
+  }
+
+  /** Orient the wind indicator: `fromDir` is where the wind blows *from*. */
+  setWind(fromDir: number): void {
+    // The arrow shows the direction the wind travels (downwind = fromDir + π).
+    const to = fromDir + Math.PI;
+    this.windArrow.setDirection(
+      new THREE.Vector3(Math.cos(to), 0, Math.sin(to)).normalize(),
+    );
   }
 
   /** Render a frame. `time` drives the (visual-only) water animation. */

@@ -19,11 +19,11 @@
     "skipLibCheck": true,
     "noEmit": true,
 
-    "baseUrl": ".",
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@sim/*": ["src/sim/*"],
-      "@render/*": ["src/render/*"]
+      "@core/*": ["./src/core/*"],
+      "@sim/*": ["./src/sim/*"],
+      "@command/*": ["./src/command/*"],
+      "@render/*": ["./src/render/*"]
     }
   },
   "include": ["src"]
