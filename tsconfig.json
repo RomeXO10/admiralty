@@ -23,6 +23,7 @@
       "@core/*": ["./src/core/*"],
       "@sim/*": ["./src/sim/*"],
       "@command/*": ["./src/command/*"],
+      "@fleet/*": ["./src/fleet/*"],
       "@render/*": ["./src/render/*"]
     }
   },
