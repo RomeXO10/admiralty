@@ -74,6 +74,15 @@ from rendering**.
 - Tuning pass on captain autonomy, latency, and plot readability.
 - **Demo:** a presentable vertical slice of the full experience.
 
+## P8 — Touch & mobile controls
+**Goal:** command the fleet from a tablet or phone.
+- Pointer-events abstraction so mouse, pen, and touch share one input path.
+- Touch order interface on the tactical plot: tap to select a ship/squadron,
+  drag to set heading or station, pinch to zoom and pan the chart.
+- On-screen controls for sail, tack/wear, shot type, fire, and tactical pause;
+  long-press opens an order radial. Responsive layout and finger-sized targets.
+- **Demo:** play a battle end to end on a touchscreen with no keyboard.
+
 ---
 
 ## Cross-cutting principles
