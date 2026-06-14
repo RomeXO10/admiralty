@@ -11,12 +11,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "three": "^0.169.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/three": "^0.169.0",
     "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.6.3",
