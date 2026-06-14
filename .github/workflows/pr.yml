@@ -6,7 +6,6 @@ name: PR
 # eyeball the render without checking the branch out.
 on:
   pull_request:
-    branches: [main]
   # Allow manual runs from the Actions tab.
   workflow_dispatch:
 
