@@ -3,6 +3,10 @@ import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 
 export default defineConfig({
+  // GitHub Pages serves a project site from a subpath
+  // (https://romexo10.github.io/admiralty/), so assets must resolve relative
+  // to that base. Harmless for root-domain hosts.
+  base: "/admiralty/",
   resolve: {
     alias: {
       "@core": fileURLToPath(new URL("./src/core", import.meta.url)),
